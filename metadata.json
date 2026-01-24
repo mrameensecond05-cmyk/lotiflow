@@ -1,0 +1,5 @@
+{
+  "name": "Sentinel LOTL Forensics",
+  "description": "A high-performance cybersecurity dashboard for Living Off The Land (LOTL) detection and digital forensics incident response (DFIR), featuring real-time process telemetry, AI-driven analysis, and comprehensive case management.",
+  "requestFramePermissions": []
+}
