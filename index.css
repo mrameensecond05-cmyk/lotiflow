@@ -32,12 +32,7 @@
 body {
   margin: 0;
   padding: 0;
-  margin: 0;
-  padding: 0;
-  background: radial-gradient(circle at 50% 0%, #1a1c2e 0%, #0B0C15 100%);
-  background-repeat: no-repeat;
-  background-attachment: fixed;
-  background-size: cover;
+  background: #05050A; /* Fixed dark background */
   color: var(--text-primary);
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
@@ -72,17 +67,9 @@ body {
 
 /* Animations */
 @keyframes float {
-  0% {
-    transform: translateY(0px);
-  }
-
-  50% {
-    transform: translateY(-10px);
-  }
-
-  100% {
-    transform: translateY(0px);
-  }
+  0% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+  100% { transform: translateY(0px); }
 }
 
 .animate-float {
@@ -90,19 +77,9 @@ body {
 }
 
 /* Custom Scrollbar */
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-
-::-webkit-scrollbar-track {
-  background: var(--bg-main);
-}
-
-::-webkit-scrollbar-thumb {
-  background: #374151;
-  border-radius: 4px;
-}
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: var(--bg-main); }
+::-webkit-scrollbar-thumb { background: #374151; border-radius: 4px; }
 
 /* Components */
 .card {
@@ -125,20 +102,54 @@ body {
   font-family: inherit;
 }
 
-.btn-primary {
-  background-color: var(--lotiflow-green);
-  color: #000;
+.btn-primary { background-color: var(--lotiflow-green); color: #000; }
+.btn-ghost { background: transparent; color: var(--text-primary); }
+.btn-ghost:hover { background-color: var(--bg-hover); }
+
+/* New Auth Styles */
+.input-dark {
+  background-color: #161822; /* Specific dark bg for auth inputs */
+  border: 1px solid #232635;
+  color: #E2E8F0;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  outline: none;
+  font-family: inherit;
+  width: 100%;
+  font-size: 0.875rem;
+  transition: border-color 0.2s;
 }
 
-.btn-ghost {
-  background: transparent;
-  color: var(--text-primary);
+.input-dark:focus {
+  border-color: #3B82F6; /* Blue focus */
 }
 
-.btn-ghost:hover {
-  background-color: var(--bg-hover);
+.btn-brand {
+  background-color: #3B82F6; /* Brand Blue */
+  color: white;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  border: none;
+  width: 100%;
+  font-size: 0.875rem;
 }
 
+.btn-brand:hover {
+  background-color: #2563EB;
+}
+
+.btn-brand:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+/* Legacy input-field (keep for other views if needed, or update) */
 .input-field {
   background-color: var(--bg-input);
   border: 1px solid var(--border-color);
@@ -149,10 +160,7 @@ body {
   font-family: inherit;
   width: 100%;
 }
-
-.input-field:focus {
-  border-color: var(--lotiflow-green);
-}
+.input-field:focus { border-color: var(--lotiflow-green); }
 
 /* Risk Grid Map */
 .risk-grid {
@@ -168,18 +176,9 @@ body {
   background-color: #232533;
   transition: opacity 0.2s;
 }
-
-.risk-cell.high {
-  background-color: var(--lotiflow-red);
-}
-
-.risk-cell.med {
-  background-color: var(--lotiflow-orange);
-}
-
-.risk-cell.low {
-  background-color: #2C3040;
-}
+.risk-cell.high { background-color: var(--lotiflow-red); }
+.risk-cell.med { background-color: var(--lotiflow-orange); }
+.risk-cell.low { background-color: #2C3040; }
 
 /* Status Badge */
 .status-badge {
@@ -189,24 +188,9 @@ body {
   font-weight: 600;
   text-transform: uppercase;
 }
-
-.status-critical {
-  color: var(--lotiflow-red);
-  background: rgba(239, 68, 68, 0.1);
-  border: 1px solid rgba(239, 68, 68, 0.2);
-}
-
-.status-high {
-  color: var(--lotiflow-orange);
-  background: rgba(245, 158, 11, 0.1);
-  border: 1px solid rgba(245, 158, 11, 0.2);
-}
-
-.status-active {
-  color: var(--lotiflow-green);
-  background: rgba(0, 208, 132, 0.1);
-  border: 1px solid rgba(0, 208, 132, 0.2);
-}
+.status-critical { color: var(--lotiflow-red); background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.2); }
+.status-high { color: var(--lotiflow-orange); background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.2); }
+.status-active { color: var(--lotiflow-green); background: rgba(0, 208, 132, 0.1); border: 1px solid rgba(0, 208, 132, 0.2); }
 
 /* Layout Helpers */
 .sidebar-link {
@@ -220,9 +204,4 @@ body {
   margin-bottom: 4px;
   transition: all 0.2s;
 }
-
-.sidebar-link:hover,
-.sidebar-link.active {
-  background-color: rgba(0, 208, 132, 0.1);
-  color: var(--lotiflow-green);
-}
+.sidebar-link:hover, .sidebar-link.active { background-color: rgba(0, 208, 132, 0.1); color: var(--lotiflow-green); }

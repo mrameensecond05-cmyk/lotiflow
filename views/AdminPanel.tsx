@@ -14,9 +14,9 @@ interface AdminPanelProps {
 }
 
 const MOCK_USERS = [
-  { id: '1', name: 'Admin User', email: 'admin@sentinel.sec', role: UserRole.ADMIN, status: 'ACTIVE' },
-  { id: '2', name: 'Jane Smith', email: 'jane.smith@sentinel.sec', role: UserRole.ANALYST, status: 'ACTIVE' },
-  { id: '3', name: 'Bob Johnson', email: 'bob.j@sentinel.sec', role: UserRole.VIEWER, status: 'INACTIVE' },
+  { id: '1', name: 'Admin User', email: 'admin@lotiflow.sec', role: UserRole.ADMIN, status: 'ACTIVE' },
+  { id: '2', name: 'Jane Smith', email: 'jane.smith@lotiflow.sec', role: UserRole.ANALYST, status: 'ACTIVE' },
+  { id: '3', name: 'Bob Johnson', email: 'bob.j@lotiflow.sec', role: UserRole.VIEWER, status: 'INACTIVE' },
 ];
 
 const AdminPanel: React.FC<AdminPanelProps> = ({ theme, onThemeChange }) => {

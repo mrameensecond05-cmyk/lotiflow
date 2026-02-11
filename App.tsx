@@ -10,6 +10,7 @@ import Intelligence from './views/Intelligence';
 import Systems from './views/Systems';
 import UserDashboard from './views/UserDashboard';
 import UserProfile from './views/UserProfile';
+import Cases from './views/Cases';
 
 function App() {
   return (
@@ -41,6 +42,11 @@ function App() {
           <Route path="/profile" element={
             <ProtectedRoute requireAdmin={true}>
               <UserProfile />
+            </ProtectedRoute>
+          } />
+          <Route path="/cases" element={
+            <ProtectedRoute requireAdmin={true}>
+              <Cases />
             </ProtectedRoute>
           } />
         </Route>

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Edit2, Trash2, Plus, User as UserIcon, FileText as FileTextIcon, Clock as ClockIcon, Settings as SettingsIcon, Server, Download, Copy, CheckCircle, XCircle, Activity } from 'lucide-react';
 
-const API_URL = 'http://localhost:5001/api';
+const API_URL = 'http://localhost:8082/api';
 
 const Systems = () => {
     const [activeTab, setActiveTab] = useState('users');
@@ -107,7 +107,7 @@ const Systems = () => {
                     <li>Download the agent installer using the button above</li>
                     <li>Extract the ZIP file on your Windows endpoint</li>
                     <li>Right-click <code>install.ps1</code> and select "Run with PowerShell" (as Administrator)</li>
-                    <li>When prompted, enter this server URL: <code>http://{window.location.hostname}:8080</code></li>
+                    <li>When prompted, enter this server URL: <code>http://{window.location.hostname}:8082</code></li>
                     <li>Enter the enrollment password: <code>MySecureProjectPassword2026!</code></li>
                     <li>The endpoint will appear below once enrolled successfully</li>
                 </ol>
@@ -254,7 +254,7 @@ const Systems = () => {
                     <input
                         type="text"
                         className="input-field"
-                        value={`http://${window.location.hostname}:8080`}
+                        value={`http://${window.location.hostname}:8082`}
                         readOnly
                         style={{ fontFamily: 'monospace', background: '#232533' }}
                     />
@@ -326,7 +326,7 @@ const Systems = () => {
 
                 {activeTab === 'endpoints' && (
                     <a
-                        href={`http://${window.location.hostname}:8080/api/agent/download`}
+                        href={`http://${window.location.hostname}:8082/api/agent/download`}
                         className="btn btn-primary"
                         style={{ padding: '0.5rem 1rem', fontSize: '0.85rem', gap: '6px', textDecoration: 'none' }}
                     >

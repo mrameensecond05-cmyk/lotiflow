@@ -8,7 +8,7 @@ import {
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 
-const API_URL = 'http://localhost:5001/api';
+const API_URL = 'http://localhost:8082/api';
 const mockGraphData = [
     { name: '10:00', activity: 20 }, { name: '10:05', activity: 35 },
     { name: '10:10', activity: 25 }, { name: '10:15', activity: 60 },
@@ -296,7 +296,7 @@ const UserDashboard = () => {
                         <div style={{ marginBottom: '24px' }}>
                             <div style={{ display: 'flex', gap: '12px', alignItems: 'center', marginBottom: '16px' }}>
                                 <a
-                                    href={`http://${window.location.hostname}:8080/api/agent/download`}
+                                    href={`http://${window.location.hostname}:8082/api/agent/download`}
                                     className="btn"
                                     style={{
                                         background: 'var(--sentinel-blue)',
@@ -330,9 +330,9 @@ const UserDashboard = () => {
                                 justifyContent: 'space-between',
                                 alignItems: 'center'
                             }}>
-                                <span>http://{window.location.hostname}:8080</span>
+                                <span>http://{window.location.hostname}:8082</span>
                                 <button className="btn" style={{ padding: '4px 8px', fontSize: '0.75rem' }}
-                                    onClick={() => navigator.clipboard.writeText(`http://${window.location.hostname}:8080`)}
+                                    onClick={() => navigator.clipboard.writeText(`http://${window.location.hostname}:8082`)}
                                 >
                                     <Copy size={14} /> COPY
                                 </button>

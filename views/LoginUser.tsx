@@ -9,7 +9,7 @@ const LoginUser = () => {
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
 
-    const API_URL = 'http://localhost:5001/api';
+    const API_URL = 'http://localhost:8082/api';
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -60,7 +60,7 @@ const LoginUser = () => {
     };
 
     return (
-        <div className="container" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
+        <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
             <div className="glass-panel" style={{ padding: '3rem', borderRadius: '16px', maxWidth: '420px', width: '100%', borderColor: 'var(--lotiflow-green)', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                 <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
                     <div style={{ display: 'inline-flex', padding: '1rem', borderRadius: '50%', background: 'rgba(0, 208, 132, 0.1)', marginBottom: '1rem' }} className="animate-float">

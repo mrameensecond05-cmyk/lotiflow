@@ -1,7 +1,7 @@
 import React from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import {
-    LayoutDashboard, Shield, Server, Search, Bell, User, Zap, Circle
+    LayoutDashboard, Shield, Server, Search, Bell, User, Zap, Circle, Briefcase
 } from 'lucide-react';
 
 const Layout = () => {
@@ -41,6 +41,9 @@ const Layout = () => {
                     </NavLink>
                     <NavLink to="/intelligence" className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}>
                         <Shield size={20} /> Intelligence
+                    </NavLink>
+                    <NavLink to="/cases" className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}>
+                        <Briefcase size={20} /> Cases
                     </NavLink>
                     <NavLink to="/systems" className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}>
                         <Server size={20} /> Systems

@@ -9,7 +9,7 @@ const LoginAdmin = () => {
     const [loading, setLoading] = useState(false);
     const [isRegistering, setIsRegistering] = useState(false);
 
-    const API_URL = 'http://localhost:5001/api';
+    const API_URL = 'http://localhost:8082/api';
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -72,20 +72,54 @@ const LoginAdmin = () => {
     };
 
     return (
-        <div className="container" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
-            <div className="glass-panel" style={{ padding: '3rem', borderRadius: '16px', maxWidth: '420px', width: '100%', borderColor: 'var(--lotiflow-blue)', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+        <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#05050A' }}>
+            {/* Main Card */}
+            <div className="auth-card" style={{
+                padding: '2.5rem',
+                borderRadius: '24px',
+                maxWidth: '400px',
+                width: '100%',
+                backgroundColor: '#0F1016',
+                border: '1px solid #1F212E',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)'
+            }}>
+
+                {/* Logo Section */}
                 <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-                    <div style={{ display: 'inline-flex', padding: '1rem', borderRadius: '50%', background: 'rgba(59, 130, 246, 0.1)', marginBottom: '1rem' }} className="animate-float">
-                        <Server size={40} color="var(--lotiflow-blue)" />
+                    <div style={{
+                        display: 'inline-flex',
+                        padding: '1rem',
+                        borderRadius: '16px',
+                        background: '#3B82F6',
+                        marginBottom: '1rem',
+                        boxShadow: '0 4px 6px -1px rgba(59, 130, 246, 0.5)'
+                    }}>
+                        <Shield size={32} color="white" fill="white" />
                     </div>
-                    <h1 style={{ fontSize: '1.5rem', fontWeight: 700 }}>{isRegistering ? 'Admin Registration' : 'Admin Portal'}</h1>
-                    <p style={{ color: 'var(--text-secondary)' }}>{isRegistering ? 'Create new SOC Administrator' : 'SOC Management Access'}</p>
+                    <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: 'white', letterSpacing: '-0.025em', marginBottom: '0.25rem' }}>LotiFlow</h1>
+                    <p style={{
+                        color: '#3B82F6',
+                        fontSize: '0.65rem',
+                        fontWeight: 700,
+                        letterSpacing: '0.1em',
+                        textTransform: 'uppercase'
+                    }}>Active Telemetry Engine</p>
                 </div>
 
-                <form onSubmit={handleSubmit} className="flex flex-col gap-4" style={{ width: '100%' }}>
+                {/* Header */}
+                <div style={{ width: '100%', marginBottom: '1.5rem' }}>
+                    <h2 style={{ fontSize: '1rem', color: 'white', fontWeight: 600, marginBottom: '0.5rem' }}>Access Node</h2>
+                    <p style={{ fontSize: '0.8rem', color: '#6B7280' }}>Authorize connection to local telemetry agent.</p>
+                </div>
+
+                {/* Form */}
+                <form onSubmit={handleSubmit} className="flex flex-col gap-3" style={{ width: '100%' }}>
                     {isRegistering && (
                         <input
-                            className="input-field"
+                            className="input-dark"
                             placeholder="Full Name"
                             value={formData.full_name}
                             onChange={e => setFormData({ ...formData, full_name: e.target.value })}
@@ -93,14 +127,14 @@ const LoginAdmin = () => {
                         />
                     )}
                     <input
-                        className="input-field"
-                        placeholder="Admin Email"
+                        className="input-dark"
+                        placeholder="Username"
                         value={formData.email}
                         onChange={e => setFormData({ ...formData, email: e.target.value })}
                         required
                     />
                     <input
-                        className="input-field"
+                        className="input-dark"
                         type="password"
                         placeholder="Password"
                         value={formData.password}
@@ -108,27 +142,38 @@ const LoginAdmin = () => {
                         required
                     />
 
-                    {error && <div className="text-red-500 text-sm flex items-center gap-2 bg-red-900/20 p-2 rounded"><AlertCircle size={14} /> {error}</div>}
+                    {error && <div className="text-red-500 text-xs flex items-center gap-2 mt-2"><AlertCircle size={12} /> {error}</div>}
 
-                    <button type="submit" disabled={loading} className="btn btn-primary w-full flex justify-center gap-2" style={{ background: 'var(--lotiflow-blue)', color: 'white' }}>
-                        {loading ? 'Processing...' : (isRegistering ? 'Register & Login' : 'Access Console')}
-                        {isRegistering ? <UserPlus size={18} /> : <LogIn size={18} />}
+                    <button type="submit" disabled={loading} className="btn-brand mt-2">
+                        {loading ? 'Connecting...' : (isRegistering ? 'Register Node' : 'Establish Session')}
                     </button>
                 </form>
 
-                <div className="mt-4 text-center">
+                {/* Default Access Box */}
+                {!isRegistering && (
+                    <div style={{
+                        marginTop: '1.5rem',
+                        width: '100%',
+                        padding: '1rem',
+                        backgroundColor: '#161822',
+                        borderRadius: '12px',
+                        border: '1px solid #1F212E'
+                    }}>
+                        <p style={{ fontSize: '0.65rem', color: '#3B82F6', fontWeight: 700, marginBottom: '0.25rem' }}>DEFAULT NODE ACCESS</p>
+                        <p style={{ fontSize: '0.75rem', color: '#6B7280' }}>User: <span className="text-gray-400">admin@lotiflow.local</span> / Pass: <span className="text-gray-400">admin</span></p>
+                    </div>
+                )}
+
+                {/* Footer Links */}
+                <div className="mt-6 text-center">
                     <button
                         type="button"
                         onClick={() => setIsRegistering(!isRegistering)}
-                        className="text-sm text-blue-400 hover:text-blue-300 underline bg-transparent border-none cursor-pointer"
+                        className="text-xs text-gray-500 hover:text-gray-300 bg-transparent border-none cursor-pointer transition-colors"
                     >
-                        {isRegistering ? 'Already have an account? Login' : 'Need an admin account? Register'}
+                        {isRegistering ? 'Back to Login' : 'Register Local Workstation'}
                     </button>
                 </div>
-
-                <p className="text-center mt-6 text-sm text-gray-500 cursor-pointer hover:text-white" onClick={() => navigate('/')}>
-                    &larr; Back to Selection
-                </p>
             </div>
         </div>
     );

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Send, Terminal, Shield, Activity } from 'lucide-react';
 
-const API_URL = 'http://localhost:5001/api';
+const API_URL = 'http://localhost:8082/api';
 
 const Intelligence = () => {
     const [activeTab, setActiveTab] = useState('alerts'); // 'alerts' or 'telemetry'

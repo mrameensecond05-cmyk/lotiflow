@@ -15,7 +15,7 @@ const PORT = process.env.PORT || 5001;
 
 const app = express();
 app.use(cors({
-    origin: 'http://localhost:3000',
+    origin: 'http://localhost:3001',
     credentials: true
 }));
 app.use(express.json());
@@ -244,8 +244,8 @@ async function initDB() {
             await dbRun("INSERT INTO lotl_role (role_name, description) VALUES ('Admin', 'Full Access'), ('Analyst', 'Standard Access'), ('Viewer', 'Read Only')");
 
             const hash = await bcrypt.hash('admin', 10);
-            await dbRun("INSERT INTO lotl_login (role_id, full_name, email, password_hash, status) VALUES (1, 'Admin User', 'admin@securepulse.local', ?, 'active')", [hash]);
-            await dbRun("INSERT INTO lotl_login (role_id, full_name, email, password_hash, status) VALUES (2, 'Analyst User', 'analyst@securepulse.local', ?, 'active')", [hash]);
+            await dbRun("INSERT INTO lotl_login (role_id, full_name, email, password_hash, status) VALUES (1, 'Admin User', 'admin@lotiflow.local', ?, 'active')", [hash]);
+            await dbRun("INSERT INTO lotl_login (role_id, full_name, email, password_hash, status) VALUES (2, 'Analyst User', 'user@lotiflow.local', ?, 'active')", [hash]);
 
             await dbRun("INSERT INTO lotl_detection_rule (rule_name, severity_default) VALUES ('Suspicious PowerShell', 'high'), ('CertUtil Abuse', 'medium')");
 
@@ -451,8 +451,127 @@ app.post('/api/alerts/:id/ack', async (req, res) => {
 // 8. Cases
 app.get('/api/cases', async (req, res) => {
     try {
-        const rows = await dbAll('SELECT * FROM lotl_case WHERE status != "closed" ORDER BY created_at DESC LIMIT 5');
+        const { status, priority } = req.query;
+        let query = 'SELECT * FROM lotl_case';
+        const params = [];
+        const conditions = [];
+
+        if (status) {
+            conditions.push('status = ?');
+            params.push(status);
+        }
+        if (priority) {
+            conditions.push('priority = ?');
+            params.push(priority);
+        }
+
+        if (conditions.length > 0) {
+            query += ' WHERE ' + conditions.join(' AND ');
+        }
+
+        query += ' ORDER BY created_at DESC';
+
+        const rows = await dbAll(query, params);
         res.json(rows);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// 8.1 Get Single Case Details
+app.get('/api/cases/:id', async (req, res) => {
+    try {
+        const caseId = req.params.id;
+        const caseDetails = await dbGet('SELECT * FROM lotl_case WHERE case_id = ?', [caseId]);
+        if (!caseDetails) return res.status(404).json({ error: 'Case not found' });
+
+        // Get Linked Alerts
+        const alerts = await dbAll(`
+            SELECT a.*, r.rule_name, h.hostname 
+            FROM lotl_alert_reference a
+            JOIN lotl_case_alert ca ON a.alert_id = ca.alert_id
+            JOIN lotl_detection_rule r ON a.rule_id = r.rule_id
+            JOIN lotl_host h ON a.host_id = h.host_id
+            WHERE ca.case_id = ?
+        `, [caseId]);
+
+        // Get Notes
+        const notes = await dbAll(`
+            SELECT n.*, l.full_name as analyst_name 
+            FROM lotl_case_note n
+            JOIN lotl_login l ON n.analyst_id = l.login_id
+            WHERE n.case_id = ?
+            ORDER BY n.created_at ASC
+        `, [caseId]);
+
+        res.json({ ...caseDetails, alerts, notes });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// 8.2 Create Case
+app.post('/api/cases', requireAuth, async (req, res) => {
+    const { title, description, priority } = req.body;
+    try {
+        const result = await dbRun(
+            "INSERT INTO lotl_case (title, description, priority, status) VALUES (?, ?, ?, 'open')",
+            [title, description, priority || 'medium']
+        );
+        res.json({ message: 'Case created', caseId: result.lastID });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// 8.3 Update Case
+app.put('/api/cases/:id', requireAuth, async (req, res) => {
+    const { status, priority, description } = req.body;
+    try {
+        // Build dynamic update query
+        let updates = [];
+        let params = [];
+        if (status) { updates.push('status = ?'); params.push(status); }
+        if (priority) { updates.push('priority = ?'); params.push(priority); }
+        if (description) { updates.push('description = ?'); params.push(description); }
+
+        if (updates.length > 0) {
+            params.push(req.params.id);
+            await dbRun(`UPDATE lotl_case SET ${updates.join(', ')} WHERE case_id = ?`, params);
+            res.json({ message: 'Case updated' });
+        } else {
+            res.status(400).json({ error: 'No fields to update' });
+        }
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// 8.4 Add Note to Case
+app.post('/api/cases/:id/notes', requireAuth, async (req, res) => {
+    const { note_text } = req.body;
+    const analystId = req.session.user.id;
+    try {
+        await dbRun(
+            "INSERT INTO lotl_case_note (case_id, analyst_id, note_text) VALUES (?, ?, ?)",
+            [req.params.id, analystId, note_text]
+        );
+        res.json({ message: 'Note added' });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// 8.5 Link Alert to Case
+app.post('/api/cases/:id/alerts', requireAuth, async (req, res) => {
+    const { alert_id } = req.body;
+    try {
+        // Check if already linked
+        const existing = await dbGet('SELECT id FROM lotl_case_alert WHERE case_id = ? AND alert_id = ?', [req.params.id, alert_id]);
+        if (existing) return res.status(409).json({ error: 'Alert already linked to this case' });
+
+        await dbRun("INSERT INTO lotl_case_alert (case_id, alert_id) VALUES (?, ?)", [req.params.id, alert_id]);
+        res.json({ message: 'Alert linked to case' });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
