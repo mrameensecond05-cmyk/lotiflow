@@ -553,7 +553,7 @@ app.post('/api/logs', async (req, res) => {
             await connection.execute(sql, [
                 agent.host_id,
                 agent.agent_id,
-                'Agent-Sim',
+                'Sysmon',
                 'ProcessCreate',
                 log.process_name,
                 log.command_line,

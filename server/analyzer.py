@@ -44,34 +44,35 @@ class LogAnalyzer:
     def get_or_create_host(self, hostname):
         if not self.db_conn: return None
         cursor = self.db_conn.cursor()
-        # Check exist
-        cursor.execute("SELECT host_id FROM lotl_host WHERE hostname = %s", (hostname,))
-        res = cursor.fetchone()
-        if res: return res[0]
-        
-        # Create
         try:
+            # Check exist
+            cursor.execute("SELECT host_id FROM lotl_host WHERE hostname = %s", (hostname,))
+            res = cursor.fetchone()
+            if res: return res[0]
+            
+            # Create
             cursor.execute("INSERT INTO lotl_host (hostname, environment, criticality, status) VALUES (%s, 'lab', 'medium', 'active')", (hostname,))
             self.db_conn.commit()
             return cursor.lastrowid
         except Exception as e:
-            print(f"Host Creation Error: {e}")
+            print(f"Host ID Error: {e}")
+            self.db_conn.reconnect(attempts=3, delay=2)
             return None
 
     def get_or_create_rule(self, rule_name):
         if not self.db_conn: return None
         cursor = self.db_conn.cursor()
-        cursor.execute("SELECT rule_id FROM lotl_detection_rule WHERE rule_name = %s", (rule_name,))
-        res = cursor.fetchone()
-        if res: return res[0]
-        
-        # Create default
         try:
+            cursor.execute("SELECT rule_id FROM lotl_detection_rule WHERE rule_name = %s", (rule_name,))
+            res = cursor.fetchone()
+            if res: return res[0]
+            
+            # Create default
             cursor.execute("INSERT INTO lotl_detection_rule (rule_name, severity_default, logic_type, rule_content) VALUES (%s, 'high', 'keyword', 'auto-generated')", (rule_name,))
             self.db_conn.commit()
             return cursor.lastrowid
         except Exception as e:
-            print(f"Rule Creation Error: {e}")
+            print(f"Rule ID Error: {e}")
             return None
 
     def save_alert(self, hostname, rule_name, severity, details, ai_analysis):
@@ -88,9 +89,6 @@ class LogAnalyzer:
                     return
 
                 cursor = self.db_conn.cursor()
-                # Insert Alert
-                # Note: lotl_alert_reference doesn't have ai_analysis column in the user's schema prompt?
-                # User prompt: "description TEXT NULL". I will put AI analysis in description.
                 full_desc = f"{details}\n\nAI Analysis: {ai_analysis}"
                 
                 sql = "INSERT INTO lotl_alert_reference (host_id, rule_id, severity, description, timestamp, status, detection_source) VALUES (%s, %s, %s, %s, NOW(), 'new', 'rule')"
@@ -103,21 +101,24 @@ class LogAnalyzer:
 
     def analyze_log(self, log_entry):
         try:
-            process = log_entry.get("process_name") or log_entry.get("Image", "")
-            cmd_line = log_entry.get("command_line") or log_entry.get("CommandLine", "")
-            hostname = log_entry.get("Computer", "Unknown-Host")
+            # DB returns tuple/dict depending on cursor. We'll fetch as dict.
+            process = log_entry.get("process_name") or ""
+            cmd_line = log_entry.get("command_line") or ""
+            hostname = log_entry.get("hostname") or "Unknown-Host"
             
             process_lower = process.lower()
             cmd_line_lower = cmd_line.lower()
 
             # Rule 1: CertUtil
             if "certutil" in process_lower and any(x in cmd_line_lower for x in ["urlcache", "split", "decode"]):
+                print(f"DETECTED: CertUtil Abuse on {hostname}")
                 ai_explanation = self.ask_ollama(cmd_line, "CertUtil Abuse")
                 self.save_alert(hostname, "CertUtil Download", "HIGH", cmd_line, ai_explanation)
                 return "ALERT: CertUtil"
 
             # Rule 2: PowerShell Encoded
             if ("powershell" in process_lower or "pwsh" in process_lower) and any(x in cmd_line_lower for x in ["-enc", "-encodedcommand"]):
+                print(f"DETECTED: Suspicious PowerShell on {hostname}")
                 ai_explanation = self.ask_ollama(cmd_line, "Suspicious PowerShell")
                 self.save_alert(hostname, "Suspicious PowerShell", "MEDIUM", cmd_line, ai_explanation)
                 return "ALERT: PowerShell"
@@ -127,27 +128,68 @@ class LogAnalyzer:
         except Exception as e:
             return f"ERROR: {str(e)}"
 
+    def get_max_event_id(self):
+        if not self.db_conn: return 0
+        try:
+            cursor = self.db_conn.cursor()
+            cursor.execute("SELECT MAX(event_id) FROM lotl_process_event")
+            res = cursor.fetchone()
+            return res[0] if res and res[0] else 0
+        except Exception as e:
+            print(f"Error getting max ID: {e}")
+            return 0
+
+    def fetch_new_events(self, last_id):
+        if not self.db_conn: return []
+        try:
+            # Reconnect if needed
+            if not self.db_conn.is_connected():
+                self.db_conn.reconnect(attempts=3, delay=2)
+            
+            cursor = self.db_conn.cursor(dictionary=True)
+            # Join with host table to get hostname
+            sql = """
+                SELECT e.*, h.hostname 
+                FROM lotl_process_event e 
+                LEFT JOIN lotl_host h ON e.host_id = h.host_id 
+                WHERE e.event_id > %s 
+                ORDER BY e.event_id ASC LIMIT 50
+            """
+            cursor.execute(sql, (last_id,))
+            return cursor.fetchall()
+        except Exception as e:
+            print(f"Fetch Error: {e}")
+            return []
+
 def main():
-    print("Starting Analysis Engine...")
-    log_file = sys.argv[1] if len(sys.argv) > 1 else "test_logs.json"
+    print("Starting Analysis Engine (Polling Mode)...")
+    analyzer = LogAnalyzer()
     
-    if os.path.exists(log_file):
-        with open(log_file, 'r') as f:
-            try:
-                content = json.load(f)
-                logs = content if isinstance(content, list) else [content]
-                
-                analyzer = LogAnalyzer()
-                for log in logs:
-                    res = analyzer.analyze_log(log)
-                    print(f"Processed: {res}")
-                    
-            except Exception as e:
-                print(f"JSON Error: {e}")
-    else:
-        print("No log file found. Waiting...")
-        time.sleep(3600)
+    # Start from the latest event to avoid re-alerting on old data
+    # Or start from 0 if we want to re-scan? Let's start from max for production-like behavior.
+    last_processed_id = analyzer.get_max_event_id()
+    print(f"Starting from Event ID: {last_processed_id}")
+
+    while True:
+        try:
+            events = analyzer.fetch_new_events(last_processed_id)
+            if events:
+                print(f"Fetched {len(events)} new events.")
+                for event in events:
+                    analyzer.analyze_log(event)
+                    last_processed_id = max(last_processed_id, event['event_id'])
+            else:
+                pass # No new events
+            
+            time.sleep(5) # Poll every 5 seconds
+            
+        except KeyboardInterrupt:
+            print("Stopping...")
+            break
+        except Exception as e:
+            print(f"Loop Error: {e}")
+            time.sleep(5)
 
 if __name__ == "__main__":
-    time.sleep(10) # Wait for DB
+    time.sleep(10) # Wait for DB initialization
     main()
