@@ -5,7 +5,7 @@ import { Shield, Lock, ScanEye, Laptop } from 'lucide-react';
 const Login = () => {
   const navigate = useNavigate();
 
-  // You were missing the 'return (' here
+
   return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
       <div className="glass-panel" style={{ padding: '3rem', borderRadius: '16px', maxWidth: '500px', width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
@@ -88,7 +88,7 @@ const Login = () => {
         </div>
       </div>
     </div>
-  ); // This closing parenthesis now matches the 'return ('
+  );
 };
 
 export default Login;
