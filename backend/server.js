@@ -1,5 +1,5 @@
 const express = require('express');
-const sqlite3 = require('sqlite3').verbose();
+const mysql = require('mysql2/promise');
 const cors = require('cors');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
@@ -7,11 +7,23 @@ const crypto = require('crypto');
 const AdmZip = require('adm-zip');
 const path = require('path');
 const session = require('express-session');
-const SQLiteStore = require('connect-sqlite3')(session);
 require('dotenv').config();
 
 const ENROLLMENT_SECRET = "MySecureProjectPassword2026!";
 const PORT = process.env.PORT || 5001;
+
+// DB Configuration
+const dbConfig = {
+    host: process.env.DB_HOST || 'db',
+    user: process.env.DB_USER || 'root',
+    password: process.env.DB_PASSWORD || 'root',
+    database: process.env.DB_NAME || 'lotl_dfms',
+    waitForConnections: true,
+    connectionLimit: 10,
+    queueLimit: 0
+};
+
+const pool = mysql.createPool(dbConfig);
 
 const app = express();
 app.use(cors({
@@ -21,11 +33,9 @@ app.use(cors({
 app.use(express.json());
 
 // Session Management
+// Using MemoryStore for simplicity as we removed SQLite. 
+// In production, use express-mysql-session.
 app.use(session({
-    store: new SQLiteStore({
-        db: 'sessions.db',
-        dir: './'
-    }),
     secret: process.env.SESSION_SECRET || 'lotiflow-secret-key-2026',
     resave: false,
     saveUninitialized: false,
@@ -37,230 +47,55 @@ app.use(session({
     }
 }));
 
-// Database Setup
-const db = new sqlite3.Database('./lotl.db', (err) => {
-    if (err) {
-        console.error('Error opening database', err.message);
-    } else {
-        console.log('Connected to SQLite database.');
-        initDB();
+// Promisified DB Helpers - Adapted for MySQL
+const dbRun = async (sql, params = []) => {
+    try {
+        const [results] = await pool.execute(sql, params);
+        return {
+            lastID: results.insertId,
+            changes: results.affectedRows
+        };
+    } catch (err) {
+        console.error("DB Error:", err.message, sql);
+        throw err;
     }
-});
-
-// Promisified DB Helpers
-const dbRun = (sql, params = []) => {
-    return new Promise((resolve, reject) => {
-        db.run(sql, params, function (err) {
-            if (err) reject(err);
-            else resolve(this);
-        });
-    });
 };
 
-const dbAll = (sql, params = []) => {
-    return new Promise((resolve, reject) => {
-        db.all(sql, params, (err, rows) => {
-            if (err) reject(err);
-            else resolve(rows);
-        });
-    });
+const dbAll = async (sql, params = []) => {
+    try {
+        const [rows] = await pool.execute(sql, params);
+        return rows;
+    } catch (err) {
+        console.error("DB Error:", err.message, sql);
+        throw err;
+    }
+};
+
+const dbGet = async (sql, params = []) => {
+    try {
+        const [rows] = await pool.execute(sql, params);
+        return rows[0];
+    } catch (err) {
+        console.error("DB Error:", err.message, sql);
+        throw err;
+    }
 };
 
 // Import middleware
 const { requireAuth, requireAdmin } = require('./middleware/auth');
-const { auditLog } = require('./middleware/audit');
-
-
-const dbGet = (sql, params = []) => {
-    return new Promise((resolve, reject) => {
-        db.get(sql, params, (err, row) => {
-            if (err) reject(err);
-            else resolve(row);
-        });
-    });
-};
+// const { auditLog } = require('./middleware/audit'); // Kept import if needed by requireAuth implicitly or future use
 
 async function initDB() {
     try {
-        await dbRun("PRAGMA foreign_keys = ON");
-
-        // 1. Roles
-        await dbRun(`CREATE TABLE IF NOT EXISTS lotl_role (
-            role_id INTEGER PRIMARY KEY AUTOINCREMENT,
-            role_name TEXT UNIQUE,
-            description TEXT
-        )`);
-
-        // 2. Logins
-        await dbRun(`CREATE TABLE IF NOT EXISTS lotl_login (
-            login_id INTEGER PRIMARY KEY AUTOINCREMENT,
-            role_id INTEGER,
-            full_name TEXT,
-            email TEXT UNIQUE,
-            password_hash TEXT,
-            status TEXT,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (role_id) REFERENCES lotl_role(role_id)
-        )`);
-
-        // 3. Hosts
-        await dbRun(`CREATE TABLE IF NOT EXISTS lotl_host (
-            host_id INTEGER PRIMARY KEY AUTOINCREMENT,
-            hostname TEXT UNIQUE,
-            ip_address TEXT,
-            os_name TEXT,
-            environment TEXT DEFAULT 'prod',
-            criticality TEXT DEFAULT 'medium',
-            status TEXT DEFAULT 'active',
-            last_seen DATETIME
-        )`);
-
-        // 4. Agents
-        await dbRun(`CREATE TABLE IF NOT EXISTS lotl_agent (
-            agent_id INTEGER PRIMARY KEY AUTOINCREMENT,
-            host_id INTEGER,
-            agent_uuid TEXT UNIQUE,
-            agent_name TEXT,
-            status TEXT,
-            last_seen DATETIME,
-            install_time DATETIME DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (host_id) REFERENCES lotl_host(host_id)
-        )`);
-
-        // 5. User Host Junction
-        await dbRun(`CREATE TABLE IF NOT EXISTS lotl_user_host (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER,
-            host_id INTEGER,
-            access_level TEXT,
-            FOREIGN KEY (user_id) REFERENCES lotl_login(login_id),
-            FOREIGN KEY (host_id) REFERENCES lotl_host(host_id)
-        )`);
-
-        // 6. Detection Rules
-        await dbRun(`CREATE TABLE IF NOT EXISTS lotl_detection_rule (
-            rule_id INTEGER PRIMARY KEY AUTOINCREMENT,
-            rule_name TEXT UNIQUE,
-            severity_default TEXT
-        )`);
-
-        // 7. Alerts
-        await dbRun(`CREATE TABLE IF NOT EXISTS lotl_alert_reference (
-            alert_id INTEGER PRIMARY KEY AUTOINCREMENT,
-            host_id INTEGER,
-            rule_id INTEGER,
-            severity TEXT,
-            description TEXT,
-            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-            status TEXT DEFAULT 'new',
-            FOREIGN KEY (host_id) REFERENCES lotl_host(host_id),
-            FOREIGN KEY (rule_id) REFERENCES lotl_detection_rule(rule_id)
-        )`);
-
-        // 8. Cases
-        await dbRun(`CREATE TABLE IF NOT EXISTS lotl_case (
-            case_id INTEGER PRIMARY KEY AUTOINCREMENT,
-            title TEXT,
-            description TEXT,
-            priority TEXT,
-            status TEXT DEFAULT 'open',
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-        )`);
-
-        // 9. Process Events (Logs)
-        await dbRun(`CREATE TABLE IF NOT EXISTS lotl_process_event (
-            event_id INTEGER PRIMARY KEY AUTOINCREMENT,
-            host_id INTEGER,
-            hostname TEXT,
-            process_name TEXT,
-            command_line TEXT,
-            user_name TEXT,
-            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-            process_id INTEGER,
-            parent_process_id INTEGER,
-            FOREIGN KEY (host_id) REFERENCES lotl_host(host_id)
-        )`);
-
-        // 10. Case-Alert Linking
-        await dbRun(`CREATE TABLE IF NOT EXISTS lotl_case_alert (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            case_id INTEGER,
-            alert_id INTEGER,
-            added_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (case_id) REFERENCES lotl_case(case_id),
-            FOREIGN KEY (alert_id) REFERENCES lotl_alert(alert_id)
-        )`);
-
-        // 11. Case Notes
-        await dbRun(`CREATE TABLE IF NOT EXISTS lotl_case_note (
-            note_id INTEGER PRIMARY KEY AUTOINCREMENT,
-            case_id INTEGER,
-            analyst_id INTEGER,
-            note_text TEXT,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (case_id) REFERENCES lotl_case(case_id),
-            FOREIGN KEY (analyst_id) REFERENCES lotl_login(login_id)
-        )`);
-
-        // 12. Case Assignment
-        await dbRun(`CREATE TABLE IF NOT EXISTS lotl_case_assignment (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            case_id INTEGER,
-            analyst_id INTEGER,
-            assigned_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (case_id) REFERENCES lotl_case(case_id),
-            FOREIGN KEY (analyst_id) REFERENCES lotl_login(login_id)
-        )`);
-
-        // 13. Audit Log
-        await dbRun(`CREATE TABLE IF NOT EXISTS lotl_audit_log (
-            log_id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER,
-            action_type TEXT,
-            target_type TEXT,
-            target_id INTEGER,
-            description TEXT,
-            ip_address TEXT,
-            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (user_id) REFERENCES lotl_login(login_id)
-        )`);
-
-        // 14. Alert Actions (for acknowledgement tracking)
-        await dbRun(`CREATE TABLE IF NOT EXISTS lotl_alert_action (
-            action_id INTEGER PRIMARY KEY AUTOINCREMENT,
-            alert_id INTEGER,
-            analyst_id INTEGER,
-            action_type TEXT,
-            notes TEXT,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (alert_id) REFERENCES lotl_alert(alert_id),
-            FOREIGN KEY (analyst_id) REFERENCES lotl_login(login_id)
-        )`);
-
-        // Seed Data
-        const role = await dbGet("SELECT role_id FROM lotl_role WHERE role_name = 'Admin'");
-        if (!role) {
-            console.log("Seeding Data...");
-            await dbRun("INSERT INTO lotl_role (role_name, description) VALUES ('Admin', 'Full Access'), ('Analyst', 'Standard Access'), ('Viewer', 'Read Only')");
-
-            const hash = await bcrypt.hash('admin', 10);
-            await dbRun("INSERT INTO lotl_login (role_id, full_name, email, password_hash, status) VALUES (1, 'Admin User', 'admin@lotiflow.local', ?, 'active')", [hash]);
-            await dbRun("INSERT INTO lotl_login (role_id, full_name, email, password_hash, status) VALUES (2, 'Analyst User', 'user@lotiflow.local', ?, 'active')", [hash]);
-
-            await dbRun("INSERT INTO lotl_detection_rule (rule_name, severity_default) VALUES ('Suspicious PowerShell', 'high'), ('CertUtil Abuse', 'medium')");
-
-            // Seed a host and alerts for demo
-            await dbRun("INSERT INTO lotl_host (hostname, ip_address, status) VALUES ('SEC-WKSTN-01', '192.168.1.10', 'active')");
-            await dbRun("INSERT INTO lotl_alert_reference (host_id, rule_id, severity, description, status) VALUES (1, 1, 'high', 'Detected encoded PowerShell command', 'new')");
-            await dbRun("INSERT INTO lotl_alert_reference (host_id, rule_id, severity, description, status) VALUES (1, 2, 'medium', 'CertUtil URLCache flag used', 'new')");
-
-            await dbRun("INSERT INTO lotl_case (title, description, priority, status) VALUES ('Suspicious Activity on SEC-WKSTN-01', 'Investigating PowerShell encoded commands', 'high', 'open')");
-        }
-
+        const connection = await pool.getConnection();
+        console.log('Connected to MySQL database.');
+        connection.release();
     } catch (err) {
-        console.error("DB Init Error:", err);
+        console.error('Error connecting to MySQL database:', err.message);
     }
 }
+
+initDB();
 
 // Routes
 
@@ -309,7 +144,7 @@ app.post('/api/login', async (req, res) => {
         const match = await bcrypt.compare(password, user.password_hash);
         if (match || (password === 'admin' && user.email.startsWith('admin'))) {
             // Update last login time
-            await dbRun('UPDATE lotl_login SET last_login_time = CURRENT_TIMESTAMP WHERE login_id = ?', [user.login_id]);
+            await dbRun('UPDATE lotl_login SET last_login = CURRENT_TIMESTAMP WHERE login_id = ?', [user.login_id]);
 
             // Create session
             req.session.user = {
@@ -398,9 +233,10 @@ app.get('/api/alerts', async (req, res) => {
 // 4. Get Stats
 app.get('/api/stats', async (req, res) => {
     try {
-        const alertCounts = await dbAll('SELECT severity, COUNT(*) as count FROM lotl_alert_reference GROUP BY severity');
+        // Note: 'severity' is cleaner in MySQL than counting *
+        const rows = await dbAll('SELECT severity, COUNT(*) as count FROM lotl_alert_reference GROUP BY severity');
         const hostCount = await dbGet('SELECT COUNT(*) as count FROM lotl_host WHERE status="active"');
-        res.json({ alerts: alertCounts, hosts: hostCount.count });
+        res.json({ alerts: rows, hosts: hostCount.count });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -411,7 +247,7 @@ app.post('/api/hosts/add', async (req, res) => {
     const { userId, hostname, ip_address } = req.body;
     try {
         const result = await dbRun(
-            "INSERT INTO lotl_host (hostname, ip_address, status) VALUES (?, ?, 'active')",
+            "INSERT INTO lotl_host (hostname, ip_address, status, environment, criticality) VALUES (?, ?, 'active', 'prod', 'medium')",
             [hostname, ip_address]
         );
         await dbRun("INSERT INTO lotl_user_host (user_id, host_id, access_level) VALUES (?, ?, 'owner')", [userId, result.lastID]);
@@ -489,7 +325,7 @@ app.get('/api/cases/:id', async (req, res) => {
         const alerts = await dbAll(`
             SELECT a.*, r.rule_name, h.hostname 
             FROM lotl_alert_reference a
-            JOIN lotl_case_alert ca ON a.alert_id = ca.alert_id
+            JOIN lotl_case_alerts ca ON a.alert_id = ca.alert_id
             JOIN lotl_detection_rule r ON a.rule_id = r.rule_id
             JOIN lotl_host h ON a.host_id = h.host_id
             WHERE ca.case_id = ?
@@ -513,10 +349,13 @@ app.get('/api/cases/:id', async (req, res) => {
 // 8.2 Create Case
 app.post('/api/cases', requireAuth, async (req, res) => {
     const { title, description, priority } = req.body;
+    // Default created_by to currentUser if not specified from frontend logic
+    const createdBy = req.session.user.id;
+
     try {
         const result = await dbRun(
-            "INSERT INTO lotl_case (title, description, priority, status) VALUES (?, ?, ?, 'open')",
-            [title, description, priority || 'medium']
+            "INSERT INTO lotl_case (title, description, priority, status, created_by) VALUES (?, ?, ?, 'open', ?)",
+            [title, description, priority || 'medium', createdBy]
         );
         res.json({ message: 'Case created', caseId: result.lastID });
     } catch (err) {
@@ -567,10 +406,10 @@ app.post('/api/cases/:id/alerts', requireAuth, async (req, res) => {
     const { alert_id } = req.body;
     try {
         // Check if already linked
-        const existing = await dbGet('SELECT id FROM lotl_case_alert WHERE case_id = ? AND alert_id = ?', [req.params.id, alert_id]);
+        const existing = await dbGet('SELECT id FROM lotl_case_alerts WHERE case_id = ? AND alert_id = ?', [req.params.id, alert_id]);
         if (existing) return res.status(409).json({ error: 'Alert already linked to this case' });
 
-        await dbRun("INSERT INTO lotl_case_alert (case_id, alert_id) VALUES (?, ?)", [req.params.id, alert_id]);
+        await dbRun("INSERT INTO lotl_case_alerts (case_id, alert_id) VALUES (?, ?)", [req.params.id, alert_id]);
         res.json({ message: 'Alert linked to case' });
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -613,12 +452,10 @@ app.get('/api/agent/download', async (req, res) => {
         const zip = new AdmZip();
         const agentFolder = path.join(__dirname, '../agent');
 
-        // Add only specific files to avoid venv or unwanted files
+        // Add only specific files
         zip.addLocalFile(path.join(agentFolder, 'agent_core.py'));
         zip.addLocalFile(path.join(agentFolder, 'install.ps1'));
         zip.addLocalFile(path.join(agentFolder, 'requirements.txt'));
-
-        // Explicitly DO NOT zip agent_config.json to ensure a fresh install for every user
 
         const downloadName = `LOTIflow_Agent_Installer.zip`;
         const data = zip.toBuffer();
@@ -688,31 +525,49 @@ app.post('/api/telemetry', async (req, res) => {
         res.status(500).json({ error: err.message });
     }
 });
+
 // 11. Ingest Logs
 app.post('/api/logs', async (req, res) => {
     const { agent_id, logs } = req.body; // logs is array of event objects
     if (!logs || !Array.isArray(logs)) return res.status(400).json({ error: "Invalid logs format" });
 
+    const connection = await pool.getConnection(); // Get connection for transaction
+
     try {
-        const agent = await dbGet('SELECT agent_id, host_id FROM lotl_agent WHERE agent_uuid = ?', [agent_id]);
-        if (!agent) return res.status(404).json({ error: "Agent not found" });
+        // Use connection for queries here to stay in same session
+        const [agents] = await connection.execute('SELECT agent_id, host_id FROM lotl_agent WHERE agent_uuid = ?', [agent_id]);
+        const agent = agents[0];
 
-        const stmt = db.prepare(`INSERT INTO lotl_process_event 
+        if (!agent) {
+            connection.release();
+            return res.status(404).json({ error: "Agent not found" });
+        }
+
+        await connection.beginTransaction();
+
+        const sql = `INSERT INTO lotl_process_event 
             (host_id, agent_id, provider, event_type, timestamp, process_name, command_line, user_name) 
-            VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP, ?, ?, ?)`);
+            VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP, ?, ?, ?)`;
 
-        db.serialize(() => {
-            db.run("BEGIN TRANSACTION");
-            logs.forEach(log => {
-                stmt.run(agent.host_id, agent.agent_id, 'Agent-Sim', 'ProcessCreate', log.process_name, log.command_line, log.user || 'SYSTEM');
-            });
-            db.run("COMMIT");
-        });
-        stmt.finalize();
+        for (const log of logs) {
+            await connection.execute(sql, [
+                agent.host_id,
+                agent.agent_id,
+                'Agent-Sim',
+                'ProcessCreate',
+                log.process_name,
+                log.command_line,
+                log.user || 'SYSTEM'
+            ]);
+        }
 
+        await connection.commit();
         res.json({ status: "processed", count: logs.length });
     } catch (err) {
+        await connection.rollback();
         res.status(500).json({ error: err.message });
+    } finally {
+        connection.release();
     }
 });
 

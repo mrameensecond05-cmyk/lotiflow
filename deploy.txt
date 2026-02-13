@@ -114,14 +114,48 @@ Once up and running, access the application via your web browser:
 
 ## 5. Troubleshooting / Common Issues
 
-- **Database Connection Errors**:
-  - Ensure the `lotiflow-db` container is healthy.
-  - Check logs: `sudo docker compose logs db`
-  - Verify `backend` and `engine` can reach `db` host.
+### 5.1 Permission Denied Error
+If you see `permission denied while trying to connect to the Docker daemon socket`, it means your user does not have permission to run Docker commands.
+**Solution:**
+- Append `sudo` to every docker command: `sudo docker compose up -d`
+- OR add your user to the docker group (requires logout/login):
+  ```bash
+  sudo usermod -aG docker $USER
+  newgrp docker
+  ```
+
+### 5.2 "Network not found" Error
+This error often occurs if a previous `docker compose` session was interrupted or if network artifacts are stale.
+**Solution:**
+1. Stop any running containers (if any):
+   ```bash
+   sudo docker compose down --remove-orphans
+   ```
+2. Prune unused networks:
+   ```bash
+   sudo docker network prune -f
+   ```
+3. Restart the application:
+   ```bash
+   sudo docker compose up -d --build
+   ```
+
+### 5.3 Backend/Engine Connection Issues
+- **Database Connection**: The backend and engine services depend on the database. If they crash on startup, it might be due to the database taking longer to initialize.
+  - Check logs: `sudo docker compose logs -f backend` or `sudo docker compose logs -f engine`
+  - The `engine` service processes `test_logs.json` and then exits by default. This is normal behavior for the current configuration. To keep it running, ensure it has a continuous loop or use `restart: always` in `docker-compose.yml`.
 
 - **Frontend not loading**:
   - Check Nginx logs: `sudo docker compose logs nginx`
   - Ensure port `8082` is allowed through the firewall.
+
+- **Persistent Build Errors**:
+  - If you see build errors for files you've already fixed (e.g. `Login.tsx`), Docker might be caching the old version.
+  - Fix: Force rebuild without cache:
+    ```bash
+    sudo docker compose build --no-cache frontend
+    sudo docker compose up -d
+    ```
 
 - **Ollama Performance**:
   - Running AI models requires significant RAM. If the `lotiflow-ollama` container crashes, check system memory usage (`free -h`).
