@@ -16,61 +16,28 @@ const LoginAdmin = () => {
         setError('');
         setLoading(true);
 
-        try {
-            const endpoint = isRegistering ? '/register' : '/login';
-            const body = isRegistering
-                ? { ...formData, role_id: 1 } // Role 1 = Admin
-                : { email: formData.email, password: formData.password };
-
-            const res = await fetch(`${API_URL}${endpoint}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(body)
-            });
-            const data = await res.json();
-
-            if (!res.ok) throw new Error(data.error || (isRegistering ? 'Registration failed' : 'Login failed'));
-
+        // BYPASS AUTHENTICATION
+        setTimeout(() => {
             if (isRegistering) {
-                // Auto login after register or just switch mode? 
-                // Let's switch to login mode with success message or auto-login
-                // For simplicity: Auto login logic or just alert.
-                // Re-using login logic immediately:
-                const loginRes = await fetch(`${API_URL}/login`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email: formData.email, password: formData.password })
-                });
-                const loginData = await loginRes.json();
-                if (!loginRes.ok) throw new Error(loginData.error || 'Auto-login failed after registration');
-
-                // Set LocalStorage
-                localStorage.setItem('token', 'session-active');
-                localStorage.setItem('userRole', loginData.role);
-                localStorage.setItem('userName', loginData.user.name);
-                localStorage.setItem('userEmail', loginData.user.email);
-                localStorage.setItem('userId', loginData.user.id);
+                // Auto login as admin for demo
+                localStorage.setItem('token', 'session-active-bypass');
+                localStorage.setItem('userRole', 'admin');
+                localStorage.setItem('userName', formData.full_name || 'Admin User');
+                localStorage.setItem('userEmail', formData.email);
+                localStorage.setItem('userId', 'admin-123');
                 navigate('/overview');
-                return;
+            } else {
+                // Login as admin
+                localStorage.setItem('token', 'session-active-bypass');
+                localStorage.setItem('userRole', 'admin');
+                localStorage.setItem('userName', 'Admin User');
+                localStorage.setItem('userEmail', formData.email);
+                localStorage.setItem('userId', 'admin-123');
+
+                navigate('/overview');
             }
-
-            if (data.role !== 'admin') {
-                throw new Error("Access Denied: Not an Admin Account");
-            }
-
-            localStorage.setItem('token', 'session-active');
-            localStorage.setItem('userRole', data.role);
-            localStorage.setItem('userName', data.user.name);
-            localStorage.setItem('userEmail', data.user.email);
-            localStorage.setItem('userId', data.user.id);
-
-            navigate('/overview');
-
-        } catch (err: any) {
-            setError(err.message);
-        } finally {
             setLoading(false);
-        }
+        }, 1000);
     };
 
     return (

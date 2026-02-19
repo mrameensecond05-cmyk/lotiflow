@@ -16,47 +16,22 @@ const LoginUser = () => {
         setError('');
         setLoading(true);
 
-        const endpoint = isLogin ? '/login' : '/register';
-        const payload = isLogin
-            ? { email: formData.email, password: formData.password }
-            : { full_name: formData.fullName, email: formData.email, password: formData.password };
-
-        try {
-            const res = await fetch(`${API_URL}${endpoint}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
-            const data = await res.json();
-
-            if (!res.ok) throw new Error(data.error || 'Auth failed');
-
+        // BYPASS AUTHENTICATION
+        setTimeout(() => {
             if (isLogin) {
-                // Ensure logic for User ID is handled.
-                // If backend not sending ID yet, UserProfile will break.
-                // Assuming backend update in parallel or previous step included ID.
-                // Wait, previous replace_file_content for register returned `userId`.
-                // But Login endpoint might not return `userId`.
-                // I need to patch backend/server.js Login route to return ID too.
+                localStorage.setItem('token', 'session-active-bypass');
+                localStorage.setItem('userRole', 'user'); // Default to user
+                localStorage.setItem('userName', 'Demo User');
+                localStorage.setItem('userEmail', formData.email);
+                localStorage.setItem('userId', 'user-123');
 
-                // Storing tentative values
-                localStorage.setItem('token', 'session-active');
-                localStorage.setItem('userRole', data.role);
-                localStorage.setItem('userName', data.user.name);
-                localStorage.setItem('userEmail', data.user.email);
-                if (data.user.id) localStorage.setItem('userId', data.user.id);
-
-                navigate('/profile');
+                navigate('/user'); // Redirect to user dashboard
             } else {
                 setIsLogin(true);
-                alert("Account created! Please login.");
+                alert("Account created (Mock)! Please login.");
             }
-
-        } catch (err: any) {
-            setError(err.message);
-        } finally {
             setLoading(false);
-        }
+        }, 1000);
     };
 
     return (
