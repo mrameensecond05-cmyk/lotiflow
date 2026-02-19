@@ -16,45 +16,22 @@ const LoginUser = () => {
         setError('');
         setLoading(true);
 
-        try {
-            const endpoint = isLogin ? '/login' : '/register';
-            const body: any = {
-                email: formData.email,
-                password: formData.password
-            };
-
-            if (!isLogin) {
-                body.full_name = formData.fullName;
-            }
-
-            const res = await fetch(`${API_URL}${endpoint}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(body)
-            });
-
-            const data = await res.json();
-
-            if (!res.ok) {
-                throw new Error(data.error || 'Authentication failed');
-            }
-
+        // FULL BYPASS: No backend call
+        setTimeout(() => {
             if (isLogin) {
-                localStorage.setItem('token', 'session-active');
-                localStorage.setItem('userRole', data.role || 'user');
-                localStorage.setItem('userName', data.user.name);
-                localStorage.setItem('userEmail', data.user.email);
-                localStorage.setItem('userId', data.user.id);
+                // Set Bypass Session
+                localStorage.setItem('token', 'session-active-bypass');
+                localStorage.setItem('userRole', 'user');
+                localStorage.setItem('userName', 'Bypass User');
+                localStorage.setItem('userEmail', formData.email);
+                localStorage.setItem('userId', 'user-123');
                 navigate('/user');
             } else {
                 setIsLogin(true);
-                alert("Account created! Please login.");
+                alert("Account created! (Bypass mode - no database used)");
             }
-        } catch (err: any) {
-            setError(err.message);
-        } finally {
             setLoading(false);
-        }
+        }, 500);
     };
 
     return (

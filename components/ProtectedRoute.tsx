@@ -7,24 +7,24 @@ interface ProtectedRouteProps {
 }
 
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requireAdmin = false }) => {
-    const userRole = localStorage.getItem('userRole');
-    const token = localStorage.getItem('token');
+    // BYPASS: Automatically inject a session if none exists
+    let userRole = localStorage.getItem('userRole');
+    let token = localStorage.getItem('token');
 
-    // No authentication at all
-    if (!token) {
-        return <Navigate to="/" replace />;
+    if (!token || !userRole) {
+        console.log("No session found. Injecting Bypass Session...");
+        localStorage.setItem('token', 'session-active-bypass');
+        localStorage.setItem('userRole', 'admin'); // Default to Admin for full access
+        localStorage.setItem('userName', 'Bypass Admin');
+        localStorage.setItem('userEmail', 'admin@lotiflow.local');
+        localStorage.setItem('userId', 'admin-123');
+
+        // Refresh values
+        userRole = 'admin';
+        token = 'session-active-bypass';
     }
 
-    // Require admin role
-    if (requireAdmin && userRole !== 'admin') {
-        return <Navigate to="/user" replace />;
-    }
-
-    // Prevent admin from accessing user-only routes
-    if (!requireAdmin && userRole === 'admin') {
-        return <Navigate to="/overview" replace />;
-    }
-
+    // Always render children, effectively disabling the guard
     return <>{children}</>;
 };
 
