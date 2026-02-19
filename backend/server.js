@@ -27,7 +27,7 @@ const pool = mysql.createPool(dbConfig);
 
 const app = express();
 app.use(cors({
-    origin: 'http://localhost:3001',
+    origin: true, // Allow any origin (reflects request origin)
     credentials: true
 }));
 app.use(express.json());
