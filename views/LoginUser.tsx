@@ -16,22 +16,45 @@ const LoginUser = () => {
         setError('');
         setLoading(true);
 
-        // BYPASS AUTHENTICATION
-        setTimeout(() => {
-            if (isLogin) {
-                localStorage.setItem('token', 'session-active-bypass');
-                localStorage.setItem('userRole', 'user'); // Default to user
-                localStorage.setItem('userName', 'Demo User');
-                localStorage.setItem('userEmail', formData.email);
-                localStorage.setItem('userId', 'user-123');
+        try {
+            const endpoint = isLogin ? '/login' : '/register';
+            const body: any = {
+                email: formData.email,
+                password: formData.password
+            };
 
-                navigate('/user'); // Redirect to user dashboard
+            if (!isLogin) {
+                body.full_name = formData.fullName;
+            }
+
+            const res = await fetch(`${API_URL}${endpoint}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            });
+
+            const data = await res.json();
+
+            if (!res.ok) {
+                throw new Error(data.error || 'Authentication failed');
+            }
+
+            if (isLogin) {
+                localStorage.setItem('token', 'session-active');
+                localStorage.setItem('userRole', data.role || 'user');
+                localStorage.setItem('userName', data.user.name);
+                localStorage.setItem('userEmail', data.user.email);
+                localStorage.setItem('userId', data.user.id);
+                navigate('/user');
             } else {
                 setIsLogin(true);
-                alert("Account created (Mock)! Please login.");
+                alert("Account created! Please login.");
             }
+        } catch (err: any) {
+            setError(err.message);
+        } finally {
             setLoading(false);
-        }, 1000);
+        }
     };
 
     return (

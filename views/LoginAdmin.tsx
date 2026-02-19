@@ -16,28 +16,49 @@ const LoginAdmin = () => {
         setError('');
         setLoading(true);
 
-        // BYPASS AUTHENTICATION
-        setTimeout(() => {
-            if (isRegistering) {
-                // Auto login as admin for demo
-                localStorage.setItem('token', 'session-active-bypass');
-                localStorage.setItem('userRole', 'admin');
-                localStorage.setItem('userName', formData.full_name || 'Admin User');
-                localStorage.setItem('userEmail', formData.email);
-                localStorage.setItem('userId', 'admin-123');
-                navigate('/overview');
-            } else {
-                // Login as admin
-                localStorage.setItem('token', 'session-active-bypass');
-                localStorage.setItem('userRole', 'admin');
-                localStorage.setItem('userName', 'Admin User');
-                localStorage.setItem('userEmail', formData.email);
-                localStorage.setItem('userId', 'admin-123');
+        try {
+            const endpoint = isRegistering ? '/register' : '/login';
+            const body: any = {
+                email: formData.email,
+                password: formData.password
+            };
 
+            if (isRegistering) {
+                body.full_name = formData.full_name;
+                body.role_id = 1; // Force Admin Role
+            }
+
+            const res = await fetch(`${API_URL}${endpoint}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            });
+
+            const data = await res.json();
+
+            if (!res.ok) {
+                throw new Error(data.error || 'Authentication failed');
+            }
+
+            if (isRegistering) {
+                setIsRegistering(false);
+                alert("Admin node registered! Please login to establish session.");
+            } else {
+                if (data.role !== 'admin' && data.role !== 'analyst') {
+                    throw new Error("Unauthorized: Access restricted to Admin nodes.");
+                }
+                localStorage.setItem('token', 'session-active');
+                localStorage.setItem('userRole', data.role);
+                localStorage.setItem('userName', data.user.name);
+                localStorage.setItem('userEmail', data.user.email);
+                localStorage.setItem('userId', data.user.id);
                 navigate('/overview');
             }
+        } catch (err: any) {
+            setError(err.message);
+        } finally {
             setLoading(false);
-        }, 1000);
+        }
     };
 
     return (
