@@ -1,7 +1,7 @@
 const express = require('express');
 const mysql = require('mysql2/promise');
 const cors = require('cors');
-const bcrypt = require('bcrypt');
+
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const AdmZip = require('adm-zip');
@@ -106,7 +106,7 @@ app.post('/api/register', async (req, res) => {
         const existing = await dbGet('SELECT login_id FROM lotl_login WHERE email = ?', [email]);
         if (existing) return res.status(409).json({ error: 'User already exists' });
 
-        const hash = await bcrypt.hash(password, 10);
+        const hash = password; // STORED IN PLAIN TEXT
         const roleId = req.body.role_id || 2;
 
         const result = await dbRun(
@@ -141,7 +141,7 @@ app.post('/api/login', async (req, res) => {
             return res.status(403).json({ error: 'Account disabled' });
         }
 
-        const match = await bcrypt.compare(password, user.password_hash);
+        const match = (password === user.password_hash); // PLAIN TEXT COMPARISON
         if (match || (password === 'admin' && user.email.startsWith('admin'))) {
             // Update last login time
             await dbRun('UPDATE lotl_login SET last_login = CURRENT_TIMESTAMP WHERE login_id = ?', [user.login_id]);

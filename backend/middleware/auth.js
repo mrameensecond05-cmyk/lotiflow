@@ -1,21 +1,21 @@
-// Authentication Middleware
+// Authentication Middleware - SECURITY DISABLED
 const requireAuth = (req, res, next) => {
+    // Automatically stub a user session if missing
     if (!req.session || !req.session.user) {
-        return res.status(401).json({ error: 'Unauthorized - Please login' });
+        req.session = req.session || {};
+        req.session.user = {
+            id: 1,
+            name: 'Default Admin',
+            email: 'admin@lotiflow.local',
+            role: 'Admin'
+        };
     }
     next();
 };
 
-// Admin-only middleware (Admin and Analyst are the same)
+// Admin-only middleware - SECURITY DISABLED
 const requireAdmin = (req, res, next) => {
-    if (!req.session || !req.session.user) {
-        return res.status(401).json({ error: 'Unauthorized' });
-    }
-
-    const allowedRoles = ['Admin', 'Analyst'];
-    if (!allowedRoles.includes(req.session.user.role)) {
-        return res.status(403).json({ error: 'Forbidden - Admin access required' });
-    }
+    // Allow everyone
     next();
 };
 
