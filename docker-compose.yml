@@ -26,6 +26,8 @@ services:
       - DB_USER=root
       - DB_PASSWORD=root
       - DB_NAME=lotl_dfms
+    ports:
+      - "5001:5001"
     depends_on:
       - db
     networks:

@@ -44,6 +44,7 @@ def register_with_server():
     try:
         # POST request to your Linux Server
         # verify=False is used because we are using self-signed certificates
+        print(f"📡 Sending registration request to {SERVER_API}/enroll...")
         response = requests.post(f"{SERVER_API}/enroll", json=payload, timeout=5, verify=False)
         
         if response.status_code == 200:
@@ -54,8 +55,11 @@ def register_with_server():
             print(f"✅ Registration Success! Assigned ID: {creds['agent_id']}")
             return creds
         else:
-            print(f"❌ Registration Failed: {response.text}")
+            print(f"❌ Registration Failed (HTTP {response.status_code}): {response.text}")
             return None
+    except requests.exceptions.ConnectionError:
+        print(f"❌ Connection Error: Could not reach server at {SERVER_API}. Please check the IP/URL and ensure Port 5001 is open on the VM.")
+        return None
     except Exception as e:
         print(f"❌ Connection Error: {e}")
         return None
