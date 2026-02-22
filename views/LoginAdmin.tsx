@@ -18,24 +18,29 @@ const LoginAdmin = () => {
 
         // FULL BYPASS: No backend call
         setTimeout(() => {
-            if (isRegistering) {
-                // Auto login as admin for demo
-                localStorage.setItem('token', 'session-active-bypass');
-                localStorage.setItem('userRole', 'admin');
-                localStorage.setItem('userName', formData.full_name || 'Bypass Admin');
-                localStorage.setItem('userEmail', formData.email);
-                localStorage.setItem('userId', 'admin-123');
-                navigate('/overview');
-            } else {
-                // Login as admin
-                localStorage.setItem('token', 'session-active-bypass');
-                localStorage.setItem('userRole', 'admin');
-                localStorage.setItem('userName', 'Bypass Admin');
-                localStorage.setItem('userEmail', formData.email);
-                localStorage.setItem('userId', 'admin-123');
-                navigate('/overview');
+            try {
+                if (isRegistering) {
+                    // Auto login as admin for demo
+                    localStorage.setItem('token', 'session-active-bypass');
+                    localStorage.setItem('userRole', 'admin');
+                    localStorage.setItem('userName', formData.full_name || 'Bypass Admin');
+                    localStorage.setItem('userEmail', formData.email);
+                    localStorage.setItem('userId', 'admin-123');
+                    navigate('/overview');
+                } else {
+                    // Login as admin
+                    localStorage.setItem('token', 'session-active-bypass');
+                    localStorage.setItem('userRole', 'admin');
+                    localStorage.setItem('userName', 'Bypass Admin');
+                    localStorage.setItem('userEmail', formData.email);
+                    localStorage.setItem('userId', 'admin-123');
+                    navigate('/overview');
+                }
+            } catch (err: any) {
+                setError(err.message);
+            } finally {
+                setLoading(false);
             }
-            setLoading(false);
         }, 500);
     };
 
