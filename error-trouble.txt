@@ -1,0 +1,74 @@
+The connection failure between your **Lotiflow** agent and server is usually caused by an IP mismatch or the server's firewall blocking port **5001**. Since your backend code is configured to listen on `0.0.0.0`, it is ready to accept external connections, but you must ensure the agent is looking in the right place.
+
+Follow this guided process to fix the connection and complete the installation:
+
+---
+
+## 1. Verify Server Readiness
+
+Before troubleshooting the agent, confirm that the backend is fully operational:
+
+* **Database:** Ensure your MySQL database is running and matches the credentials in `server.js` (default: `root`/`root`). The server will fail to process enrollments if it cannot connect to the DB.
+* **Firewall:** On the machine running the server, open **Port 5001** for inbound TCP traffic.
+* **Server IP:** Do not use `127.0.0.1` unless both the server and agent are on the same machine. Use your local network IP (e.g., `192.168.x.x`).
+
+---
+
+## 2. Reset the Agent Configuration
+
+The agent stores connection details in local JSON files. If these are incorrect, the agent will never reach the server.
+
+* Navigate to your `agent/` directory.
+* **Delete** `agent_config.json` (this contains old, invalid enrollment IDs).
+* **Delete** `agent_settings.json` (this contains the previous failed URL).
+
+---
+
+## 3. Run the Installation Script
+
+Use the provided PowerShell installer to reconfigure the connection correctly:
+
+1. **Open PowerShell as Administrator** in the `agent/` folder.
+2. **Execute the script**: `.\install.ps1`.
+3. **Enter the Server URL**: When prompted, enter the full URL of your server:
+* *Format:* `http://[YOUR_SERVER_IP]:5001`
+* *Example:* `http://192.168.1.15:5001`
+
+
+4. The script will automatically install dependencies from `requirements.txt` and save your settings.
+
+---
+
+## 4. Manual Verification of the Core Agent
+
+If the connection still fails, check the `agent_core.py` settings. The enrollment requires a specific **Shared Secret** to succeed:
+
+* **Shared Secret:** Both `agent_core.py` and `server.js` must have `MySecureProjectPassword2026!`.
+* **Manual Setting:** You can manually create/edit `agent_settings.json` to ensure it points to the `/api` endpoint:
+```json
+{
+  "server_url": "http://192.168.x.x:5001/api"
+}
+
+```
+
+
+
+### Connection Flow Diagram
+
+---
+
+## 5. Testing the Connection
+
+Run the agent directly to see the real-time logs:
+
+```bash
+python agent_core.py
+
+```
+
+* **Success:** You should see `✅ Registration Success! Assigned ID: ...`.
+* **Failure (Connection Error):** This means the IP/Port is still unreachable. Double-check that your server's machine can be "pinged" from the agent machine.
+* **Failure (403):** This means the password (Shared Secret) is incorrect.
+
+Would you like me to help you create a custom PowerShell script to test if Port 5001 is open before you run the installer?
