@@ -23,7 +23,7 @@ const localEvents = [
 ];
 
 const UserDashboard = () => {
-    // Mock states
+    // States
     const [systemStatus, setSystemStatus] = useState<'safe' | 'risk'>('risk');
     const [isScanning, setIsScanning] = useState(false);
     const [scanProgress, setScanProgress] = useState(0);
@@ -31,7 +31,10 @@ const UserDashboard = () => {
     const [showInstallModal, setShowInstallModal] = useState(false);
     const [logs, setLogs] = useState<any[]>([]);
     const [endpoints, setEndpoints] = useState<any[]>([]);
+    const [agents, setAgents] = useState<any[]>([]);
     const [myStatus, setMyStatus] = useState<'online' | 'offline'>('offline');
+    const [serverVerified, setServerVerified] = useState(false);
+    const [serverPing, setServerPing] = useState<number | null>(null);
 
     useEffect(() => {
         // Fetch logs
@@ -47,23 +50,53 @@ const UserDashboard = () => {
 
         const fetchStatus = async () => {
             try {
+                // Fetch hosts with computed connectivity_status
                 const res = await fetch(`${API_URL}/hosts`);
                 const data = await res.json();
                 setEndpoints(data);
-                if (data.length > 0) {
-                    setMyStatus(data[0].connectivity_status);
-                    if (data[0].connectivity_status === 'online') setSystemStatus('safe');
-                }
+
+                // Fetch agents for detailed agent connectivity
+                const agentRes = await fetch(`${API_URL}/agents`);
+                const agentData = await agentRes.json();
+                setAgents(agentData);
+
+                // Determine overall status: online if ANY host or agent is online
+                const anyHostOnline = data.some((h: any) => h.connectivity_status === 'online');
+                const anyAgentOnline = agentData.some((a: any) => a.connectivity_status === 'online');
+                const isOnline = anyHostOnline || anyAgentOnline;
+                setMyStatus(isOnline ? 'online' : 'offline');
+                setSystemStatus(isOnline ? 'safe' : 'risk');
             } catch (err) {
                 console.error("Failed to fetch status", err);
             }
         };
 
+        // Verify server connection
+        const verifyConnection = async () => {
+            try {
+                const start = performance.now();
+                const res = await fetch(`${API_URL}/connection/verify`);
+                const elapsed = Math.round(performance.now() - start);
+                if (res.ok) {
+                    setServerVerified(true);
+                    setServerPing(elapsed);
+                } else {
+                    setServerVerified(false);
+                    setServerPing(null);
+                }
+            } catch {
+                setServerVerified(false);
+                setServerPing(null);
+            }
+        };
+
         fetchLogs();
         fetchStatus();
+        verifyConnection();
         const interval = setInterval(() => {
             fetchLogs();
             fetchStatus();
+            verifyConnection();
         }, 5000);
         return () => clearInterval(interval);
     }, []);
@@ -145,6 +178,45 @@ const UserDashboard = () => {
 
                 {/* Left Column: Metrics & Tools */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+
+                    {/* Connection Verification Banner */}
+                    <div className="card" style={{
+                        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                        borderLeft: `3px solid ${serverVerified ? 'var(--sentinel-green)' : 'var(--sentinel-red)'}`,
+                        padding: '12px 20px'
+                    }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                            <div style={{
+                                width: '10px', height: '10px', borderRadius: '50%',
+                                background: serverVerified ? 'var(--sentinel-green)' : 'var(--sentinel-red)',
+                                boxShadow: serverVerified ? '0 0 10px var(--sentinel-green)' : '0 0 10px var(--sentinel-red)',
+                                animation: 'pulse 2s infinite'
+                            }}></div>
+                            <div>
+                                <div style={{ fontWeight: 600, fontSize: '0.85rem' }}>
+                                    {serverVerified ? '✅ Server Connection Verified' : '❌ Server Connection Failed'}
+                                </div>
+                                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                                    {serverVerified
+                                        ? `Latency: ${serverPing}ms • ${agents.filter(a => a.connectivity_status === 'online').length} agent(s) online`
+                                        : 'Cannot reach LOTIflow server — check backend is running'
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                            {agents.length > 0 && agents.map((agent: any, i: number) => (
+                                <div key={i} style={{
+                                    padding: '4px 10px', borderRadius: '6px', fontSize: '0.7rem', fontWeight: 600,
+                                    background: agent.connectivity_status === 'online' ? 'rgba(16,185,129,0.15)' : 'rgba(239,68,68,0.15)',
+                                    color: agent.connectivity_status === 'online' ? 'var(--sentinel-green)' : 'var(--sentinel-red)',
+                                    border: `1px solid ${agent.connectivity_status === 'online' ? 'rgba(16,185,129,0.3)' : 'rgba(239,68,68,0.3)'}`
+                                }}>
+                                    {agent.hostname}: {agent.connectivity_status.toUpperCase()}
+                                </div>
+                            ))}
+                        </div>
+                    </div>
 
                     {/* Metrics Row */}
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>

@@ -15,6 +15,7 @@ const PORT = process.env.PORT || 5001;
 // DB Configuration
 const dbConfig = {
     host: process.env.DB_HOST || 'db',
+    port: parseInt(process.env.DB_PORT || '3306'),
     user: process.env.DB_USER || 'root',
     password: process.env.DB_PASSWORD || 'root',
     database: process.env.DB_NAME || 'lotl_dfms',
@@ -417,14 +418,43 @@ app.post('/api/cases/:id/alerts', requireAuth, async (req, res) => {
     }
 });
 
-// 9. Get Hosts (Endpoints)
+// 9. Get Hosts (Endpoints) — with computed connectivity_status
 app.get('/api/hosts', async (req, res) => {
     try {
-        const rows = await dbAll('SELECT * FROM lotl_host ORDER BY last_seen DESC');
+        const rows = await dbAll(`
+            SELECT h.*,
+                CASE WHEN h.last_seen > NOW() - INTERVAL 60 SECOND
+                     THEN 'online' ELSE 'offline' END AS connectivity_status
+            FROM lotl_host h
+            ORDER BY h.last_seen DESC
+        `);
         res.json(rows);
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
+});
+
+// 9.1 Get Agents with status
+app.get('/api/agents', async (req, res) => {
+    try {
+        const rows = await dbAll(`
+            SELECT a.agent_id, a.agent_uuid, a.agent_name, a.status, a.last_seen,
+                   h.hostname, h.ip_address, h.os_name,
+                   CASE WHEN a.last_seen > NOW() - INTERVAL 60 SECOND
+                        THEN 'online' ELSE 'offline' END AS connectivity_status
+            FROM lotl_agent a
+            JOIN lotl_host h ON a.host_id = h.host_id
+            ORDER BY a.last_seen DESC
+        `);
+        res.json(rows);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// 9.2 Connection verify — health-check for agents
+app.get('/api/connection/verify', (req, res) => {
+    res.json({ status: 'ok', timestamp: new Date().toISOString(), server: 'LOTIflow' });
 });
 
 // 10. Get Detection Rules
@@ -455,6 +485,7 @@ app.get('/api/agent/download', async (req, res) => {
 
         // Add only specific files
         zip.addLocalFile(path.join(agentFolder, 'agent_core.py'));
+        zip.addLocalFile(path.join(agentFolder, 'connect.py'));
         zip.addLocalFile(path.join(agentFolder, 'install.ps1'));
         zip.addLocalFile(path.join(agentFolder, 'install.py'));
         zip.addLocalFile(path.join(agentFolder, 'requirements.txt'));

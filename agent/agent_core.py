@@ -11,9 +11,10 @@ import sys
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 # --- Configuration ---
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 SHARED_SECRET = "MySecureProjectPassword2026!"
-CONFIG_FILE = "agent_config.json"
-SETTINGS_FILE = "agent_settings.json"
+CONFIG_FILE = os.path.join(SCRIPT_DIR, "agent_config.json")
+SETTINGS_FILE = os.path.join(SCRIPT_DIR, "agent_settings.json")
 
 # Default to localhost, but try to load from settings
 SERVER_API = "http://127.0.0.1:5001/api"

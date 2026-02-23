@@ -97,7 +97,7 @@ try {
     # 4. Run Agent
     Write-Host "`n🚀 Starting Agent..." -ForegroundColor Cyan
     try {
-        python agent_core.py
+        python agent_core.py $ServerUrl
     }
     catch {
         Write-Host "❌ Failed to start agent." -ForegroundColor Red
