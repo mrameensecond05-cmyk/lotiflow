@@ -55,6 +55,7 @@ services:
       - DB_PASSWORD=root
       - DB_NAME=lotl_dfms
       - OLLAMA_HOST=http://ollama:11434
+      - OLLAMA_MODEL=tinyllama
     depends_on:
       - db
       - ollama
